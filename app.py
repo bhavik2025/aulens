@@ -29,9 +29,9 @@ def load(source: str):
 @st.cache_data(show_spinner="Running walk-forward backtest…")
 def walk(pair, source, hurdle_mult, tender_buffer):
     df, _ = load(source)
-    sp = an.pair_spread(df, pair, an.implied_carry(df), tender_buffer_days=tender_buffer)
     base = bt.Params(hurdle_mult=hurdle_mult, tender_buffer=tender_buffer)
-    return bt.walk_forward(sp, df, pair, CostModel(), base)
+    sp = an.pair_spread(df, pair, an.implied_carry(df), tender_buffer_days=tender_buffer + base.max_hold + 3)
+    return bt.walk_forward(sp, df, pair, CostModel(), base, train_months=3, test_months=1, holdout_months=3, min_trades=1)
 
 
 st.title("AuLens — MCX gold relative-value intelligence")
@@ -99,8 +99,8 @@ with t3:
 
 with t4:
     st.subheader(f"Walk-forward backtest · {pair}")
-    st.caption("Params chosen on the previous 12 months only, traded on the next 3. "
-               "The last 6 months are a holdout traded once. Fills at next-day prices, full costs and slippage.")
+    st.caption("Params chosen on the previous 3 months only, traded on the next month. "
+               "The last 3 months are a holdout traded once. Fills at next-day prices, full costs and slippage.")
     folds, trades, hold = walk(pair, source, hurdle, tender)
     s = bt.summary(trades)
     st.info(s["verdict"])
