@@ -13,6 +13,7 @@ from aulens.specs import PAIRS, SPECS
 
 st.set_page_config(page_title="AuLens · MCX Gold", layout="wide")
 RAW = Path(__file__).parent / "data" / "raw"
+PACKED = Path(__file__).parent / "data" / "gold_futures_2025-10_2026-10.csv"
 
 
 @st.cache_data(show_spinner="Loading Bhavcopy data…")
@@ -20,6 +21,9 @@ def load(source: str):
     log = []
     if source == "Bhavcopy files (data/raw)":
         df = ingest.load_folder(RAW, log)
+        if df.empty and PACKED.exists():  # no raw files (e.g. on Streamlit Cloud): use the packed gold-only extract
+            df = ingest.finalize(pd.read_csv(PACKED, parse_dates=["date", "expiry"]))
+            log.append(f"Loaded {PACKED.name} (gold futures rows extracted from MCX Bhavcopy).")
     else:
         df = synthetic.make()
         log.append("SYNTHETIC demo data — for testing the pipeline only. Results say nothing about real MCX prices.")
@@ -38,7 +42,7 @@ st.title("AuLens — MCX gold relative-value intelligence")
 st.caption("Hack in Hills '26 · PS 03 · TeamAlpha")
 
 with st.sidebar:
-    have_raw = any(RAW.glob("*.csv"))
+    have_raw = any(RAW.glob("*.csv")) or PACKED.exists()
     source = st.radio("Data source", ["Bhavcopy files (data/raw)", "Synthetic demo"], index=0 if have_raw else 1)
     pair = st.selectbox("Pair", list(PAIRS))
     hurdle = st.slider("Cost hurdle multiple", 1.0, 3.0, 1.5, 0.25,
