@@ -57,7 +57,7 @@ def expected_cost_frac(pair: str, ref_px: dict, cm: CostModel) -> float:
 
 
 def run(sp: pd.DataFrame, df: pd.DataFrame, pair: str, p: Params, cm: CostModel,
-        start=None, end=None) -> tuple[pd.DataFrame, pd.Series]:
+        start=None, end=None, gate: pd.Series | None = None) -> tuple[pd.DataFrame, pd.Series]:
     """Simulate one parameter set. Entries are allowed only when the decision date is in [start, end)."""
     a, b, la, lb = PAIRS[pair]
     ma, mb = SPECS[a].lot_multiplier() * la, SPECS[b].lot_multiplier() * lb
@@ -110,6 +110,8 @@ def run(sp: pd.DataFrame, df: pd.DataFrame, pair: str, p: Params, cm: CostModel,
             continue
         if np.isnan(row.get("z", np.nan)):
             continue
+        if gate is not None and not bool(gate.get(t, False)):
+            continue  # regime filter (e.g. only trade when gold is volatile)
         if min(row["dte_a"], row["dte_b"]) <= p.tender_buffer + p.max_hold + 3:
             continue
         cost_frac = expected_cost_frac(pair, {a: row["close_a"], b: row["close_b"]}, cm)
@@ -132,7 +134,7 @@ GRID = {"lookback": [20, 40, 60], "entry_z": [1.5, 2.0, 2.5]}
 
 
 def walk_forward(sp, df, pair, cm: CostModel, base: Params = Params(), train_months=12, test_months=3,
-                 holdout_months=6, min_trades=3):
+                 holdout_months=6, min_trades=3, gate: pd.Series | None = None):
     """Pick params on each training window, trade the next test window with them.
     The last `holdout_months` are only traded once, with params chosen on all earlier data."""
     idx = sp.index
@@ -144,7 +146,7 @@ def walk_forward(sp, df, pair, cm: CostModel, base: Params = Params(), train_mon
         best, best_net = None, -np.inf
         for lb, ez in product(GRID["lookback"], GRID["entry_z"]):
             p = Params(**{**asdict(base), "lookback": lb, "entry_z": ez})
-            tr, _ = run(sp, df, pair, p, cm, train_start, train_end)
+            tr, _ = run(sp, df, pair, p, cm, train_start, train_end, gate)
             net = tr["net"].sum() if len(tr) >= min_trades else -np.inf
             if net > best_net:
                 best, best_net = p, net
@@ -155,7 +157,7 @@ def walk_forward(sp, df, pair, cm: CostModel, base: Params = Params(), train_mon
     while test_start < holdout_start:
         test_end = min(test_start + pd.DateOffset(months=test_months), holdout_start)
         p, train_net = choose(test_start - pd.DateOffset(months=train_months), test_start)
-        tr, daily = run(sp, df, pair, p, cm, max(test_start, busy_until), test_end)
+        tr, daily = run(sp, df, pair, p, cm, max(test_start, busy_until), test_end, gate)
         if len(tr):
             busy_until = tr["exit_date"].max() + pd.Timedelta(days=1)
         folds.append({"test_start": test_start.date(), "test_end": test_end.date(), "lookback": p.lookback,
@@ -166,7 +168,7 @@ def walk_forward(sp, df, pair, cm: CostModel, base: Params = Params(), train_mon
         test_start = test_end
 
     p_h, _ = choose(first, holdout_start)
-    tr_h, daily_h = run(sp, df, pair, p_h, cm, max(holdout_start, busy_until), None)
+    tr_h, daily_h = run(sp, df, pair, p_h, cm, max(holdout_start, busy_until), None, gate)
     hold = {"holdout_start": holdout_start.date(), "lookback": p_h.lookback, "entry_z": p_h.entry_z,
             "trades": len(tr_h), "net": tr_h["net"].sum() if len(tr_h) else 0.0}
     trades = pd.concat([t for t in oos_trades + [tr_h.assign(segment="holdout")] if len(t)], ignore_index=True) \
@@ -211,3 +213,12 @@ def summary(trades: pd.DataFrame) -> dict:
     else:
         out["verdict"] = "Positive and statistically meaningful out-of-sample edge after costs."
     return out
+
+
+def volatility_gate(gold_fine_px: pd.Series, window: int = 20, baseline: int = 120) -> pd.Series:
+    """True on days when gold's recent realised volatility is above its own trailing median.
+    Uses only past data: today's flag depends on returns up to yesterday."""
+    r = np.log(gold_fine_px).diff()
+    vol = r.rolling(window, min_periods=window // 2).std().shift(1)
+    ref = vol.rolling(baseline, min_periods=window).median()
+    return (vol > ref).fillna(False)
