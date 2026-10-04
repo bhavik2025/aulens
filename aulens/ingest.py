@@ -26,14 +26,28 @@ ALIASES = {
 CANON = ["date", "symbol", "expiry", "open", "high", "low", "close", "volume", "oi"]
 
 
+RESPONSE_DATE_FORMATS = ("%m/%d/%Y", "%d-%b-%y", "%d-%b-%Y", "%d %b %Y", "%Y-%m-%d")
+EXPIRY_FORMATS = ("%d%b%Y", "%d-%b-%y", "%d-%b-%Y", "%d %b %Y", "%Y-%m-%d")
+
+
+def _parse(s, formats) -> date:
+    s = str(s).strip()
+    for fmt in formats:
+        try:
+            return datetime.strptime(s.title() if "%b" in fmt else s, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"unrecognised date: {s!r}")
+
+
 def parse_response_date(s: str) -> date:
-    """Bhavcopy response Date is MM/DD/YYYY."""
-    return datetime.strptime(str(s).strip(), "%m/%d/%Y").date()
+    """Response Date: MM/DD/YYYY per the PS; the website CSV export uses 01-Oct-26."""
+    return _parse(s, RESPONSE_DATE_FORMATS)
 
 
 def parse_expiry(s: str) -> date:
-    """ExpiryDate like 04SEP2026."""
-    return datetime.strptime(str(s).strip().upper(), "%d%b%Y").date()
+    """ExpiryDate: 04SEP2026 per the PS; the website CSV export uses 05-Oct-26."""
+    return _parse(str(s).upper(), EXPIRY_FORMATS)
 
 
 def format_request_date(d: date) -> str:
@@ -54,6 +68,8 @@ def clean_frame(raw: pd.DataFrame, requested: date | None = None, log: list | No
     missing = [c for c in CANON if c not in df]
     if missing:
         raise ValueError(f"Bhavcopy file is missing columns: {missing}")
+    if "instrumentname" in df:  # website export mixes futures, options and other segments
+        df = df[df["instrumentname"].astype(str).str.strip().str.upper() == "FUTCOM"]
     df = df[CANON].copy()
     df["symbol"] = df["symbol"].astype(str).str.strip().str.upper()
     df = df[df["symbol"].isin(GOLD_SYMBOLS)]
