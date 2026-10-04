@@ -97,8 +97,11 @@ def load_folder(folder: str | Path, log: list | None = None) -> pd.DataFrame:
     for path in sorted(Path(folder).glob("*.csv")):
         requested = None
         m = re.match(r"(\d{4}-\d{2}-\d{2})", path.stem)
+        m2 = re.search(r"BhavCopyDateWise_(\d{2})(\d{2})(\d{4})", path.stem, re.I)
         if m:
             requested = date.fromisoformat(m.group(1))
+        elif m2:  # MCX's own download name: BhavCopyDateWise_DDMMYYYY.csv
+            requested = date(int(m2.group(3)), int(m2.group(2)), int(m2.group(1)))
         try:
             frames.append(clean_frame(pd.read_csv(path), requested, log))
         except Exception as e:  # keep going, but record it
