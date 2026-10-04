@@ -2,6 +2,8 @@
 
 **Hack in Hills '26 · PS 03 Commodity Derivatives Intelligence · TeamAlpha**
 
+**Live app:** https://aulens-mcx.streamlit.app
+
 MCX lists four small gold futures: GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL. They are all gold, so after adjusting for size, quote unit, purity and expiry date their prices should almost match. AuLens measures the gaps between them, tests on unseen history whether trading those gaps pays after costs, and says so plainly if it does not.
 
 ## What it does
