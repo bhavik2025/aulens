@@ -29,7 +29,8 @@ carry = an.implied_carry(df)
 gold = an.front_contract(df, "GOLDM")["fine_px"]
 rows, all_trades = [], []
 for pair in PAIRS:
-    sp = an.pair_spread(df, pair, carry)
+    # build the spread on contracts with enough life left for a full holding period (avoids dead weeks before each roll)
+    sp = an.pair_spread(df, pair, carry, tender_buffer_days=bt.Params().tender_buffer + bt.Params().max_hold + 3)
     folds, trades, hold = bt.walk_forward(sp, df, pair, cm, train_months=tr_m, test_months=te_m, holdout_months=ho_m, min_trades=1)
     s = bt.summary(trades)
     a, b, la, lb = PAIRS[pair]
