@@ -6,3 +6,4 @@ venv/
 .streamlit/secrets.toml
 data/raw/*.csv
 !data/raw/.gitkeep
+reports/

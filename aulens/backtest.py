@@ -151,10 +151,13 @@ def walk_forward(sp, df, pair, cm: CostModel, base: Params = Params(), train_mon
         return best or base, best_net
 
     test_start = first + pd.DateOffset(months=train_months)
+    busy_until = first  # one position at a time: a fold may not open a trade while the last one is still open
     while test_start < holdout_start:
         test_end = min(test_start + pd.DateOffset(months=test_months), holdout_start)
         p, train_net = choose(test_start - pd.DateOffset(months=train_months), test_start)
-        tr, daily = run(sp, df, pair, p, cm, test_start, test_end)
+        tr, daily = run(sp, df, pair, p, cm, max(test_start, busy_until), test_end)
+        if len(tr):
+            busy_until = tr["exit_date"].max() + pd.Timedelta(days=1)
         folds.append({"test_start": test_start.date(), "test_end": test_end.date(), "lookback": p.lookback,
                       "entry_z": p.entry_z, "train_net": train_net, "test_trades": len(tr),
                       "test_net": tr["net"].sum() if len(tr) else 0.0})
@@ -163,7 +166,7 @@ def walk_forward(sp, df, pair, cm: CostModel, base: Params = Params(), train_mon
         test_start = test_end
 
     p_h, _ = choose(first, holdout_start)
-    tr_h, daily_h = run(sp, df, pair, p_h, cm, holdout_start, None)
+    tr_h, daily_h = run(sp, df, pair, p_h, cm, max(holdout_start, busy_until), None)
     hold = {"holdout_start": holdout_start.date(), "lookback": p_h.lookback, "entry_z": p_h.entry_z,
             "trades": len(tr_h), "net": tr_h["net"].sum() if len(tr_h) else 0.0}
     trades = pd.concat([t for t in oos_trades + [tr_h.assign(segment="holdout")] if len(t)], ignore_index=True) \
@@ -187,6 +190,9 @@ def gold_attribution(daily_pnl: pd.Series, gold_fine_px: pd.Series, grams: float
     return {"beta": coef[1], "t_beta": coef[1] / se[1] if se[1] else np.nan, "alpha_per_day": coef[0], "n": len(d)}
 
 
+MIN_TRADES_FOR_VERDICT = 10
+
+
 def summary(trades: pd.DataFrame) -> dict:
     if trades is None or not len(trades):
         return {"trades": 0, "verdict": "No trades passed the cost and liquidity gates."}
@@ -195,7 +201,10 @@ def summary(trades: pd.DataFrame) -> dict:
            "net_rs": net.sum(), "hit_rate": (net > 0).mean(), "avg_net_rs": net.mean(),
            "t_stat_net": net.mean() / (net.std(ddof=1) / np.sqrt(len(net))) if len(net) > 1 and net.std() > 0 else np.nan}
     t = out["t_stat_net"]
-    if out["net_rs"] <= 0:
+    if len(net) < MIN_TRADES_FOR_VERDICT:
+        out["verdict"] = (f"Too few trades to judge ({len(net)} < {MIN_TRADES_FOR_VERDICT}); "
+                          "net is " + ("positive" if out["net_rs"] > 0 else "not positive") + " but proves nothing yet.")
+    elif out["net_rs"] <= 0:
         out["verdict"] = "No edge after costs: gross gains are consumed by fees and slippage."
     elif np.isnan(t) or t < 2:
         out["verdict"] = "Positive but not statistically reliable (t < 2): treat as no proven edge."
