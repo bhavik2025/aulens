@@ -17,6 +17,41 @@ MCX lists four small gold futures: GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL. The
 | Attribution | `aulens/backtest.py` | Daily P&L regressed on holding the same grams of gold → β near 0 = spread return, not gold's move |
 | Dashboard | `app.py` | Today's alerts (quiet by default), normalised prices, term structure, backtest, data-quality log |
 
+## Results on real MCX data (1 Oct 2025 – 1 Oct 2026, 258 trading days)
+
+**Verdict: no persistent edge survives costs. The cross-contract gap pays only during violent gold rallies.**
+
+What the data shows:
+
+- **The method works.** After purity and carry adjustment, GOLDM and GOLDTEN agree within about 3 bps (the raw gap is about 30 bps).
+- **Small contracts carry a premium.** GOLDGUINEA and GOLDPETAL traded above GOLDTEN at the same expiry on **258 of 258 days**. The median premium went from about 70 bps (Oct 2025) to 160–207 bps (Jan–Mar 2026, during the gold rally) and back to about 30 bps (Sep 2026).
+
+Backtest (`python scripts/final_verdict.py 3 1 3`): settings chosen on the previous 3 months, traded the next month, Jul–Sep 2026 held out. Next-day fills, full costs and slippage. Gold β is about 0 for every pair.
+
+| | Trades | Gross ₹ | Costs ₹ | Net ₹ | t-stat |
+|---|---|---|---|---|---|
+| All six pairs, out-of-sample | 29 | 1,70,503 | 44,020 | **1,26,483** | 1.42 |
+| of which Jan–Feb 2026 (rally) | 13 | | | 1,49,207 | |
+| of which Mar–Sep 2026 (calm) | 16 | | | −22,724 | |
+| Holdout Jul–Sep 2026 | 7 | | | **−8,262** | |
+
+- The profit is real money in the test, but it comes from one event and is not statistically proven (t < 2).
+- Every calm month lost money after costs, including the untouched holdout.
+- With a 6-month training window, the test period is only Apr–Sep and the result is 11 trades, net −₹9,743.
+- A **volatility filter** (trade only when gold's 20-day volatility is above its 120-day median) raised net to ₹2,07,653 and took no holdout trades. However, it was designed after seeing this data and rests on a single rally, so it is a hypothesis to test on older rallies (2024–25), not a proven edge.
+
+Per-pair numbers: `reports/final_summary_313.csv`. Every trade: `reports/final_trades_313.csv`.
+
+## Scripts
+
+| Script | What it does |
+|---|---|
+| `scripts/import_downloads.py <folder>` | Copies MCX Bhavcopy CSVs from your Downloads folder into `data/raw/` |
+| `scripts/check_data.py` | Monthly coverage, missing days, small-contract premium table |
+| `scripts/first_look.py` | Numbers behind the "first look" slide |
+| `scripts/run_backtest.py [train test holdout]` | Walk-forward backtest of every pair |
+| `scripts/final_verdict.py [train test holdout]` | Baseline vs volatility-gated, pooled verdict, monthly P&L |
+
 ## Pairs and equal-gram hedges
 
 | Pair | Hedge |

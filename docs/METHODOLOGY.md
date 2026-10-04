@@ -73,9 +73,18 @@ Statutory cost per leg round trip is about 1.72 bps, so about 3.4 bps for a two-
 - Attribution: regress daily P&L on the P&L of holding the same grams of gold. β ≈ 0 means the result comes from the spread.
 - Verdict: net ≤ 0 → no edge; net > 0 with t < 2 → not proven; t ≥ 2 → meaningful edge.
 
-## 8. Known limits
+## 8. Final configuration used for the verdict
+
+- Data: 258 MCX Bhavcopy days, 1 Oct 2025 – 1 Oct 2026.
+- Spreads built on contracts with at least tender_buffer + max_hold + 3 days of life left.
+- Walk-forward 3-month train / 1-month test; Jul–Sep 2026 holdout. Only one position per pair at a time.
+- No verdict with fewer than 10 trades per pair; pooled results are reported with the caveat that trades overlap in time.
+- Optional volatility gate: trade only when gold's 20-day realised volatility (using data up to the previous day) is above its 120-day median.
+
+## 9. Known limits
 
 - Settlement-based daily data cannot see intraday spreads or depth.
 - The tender period is approximated as a fixed number of days before expiry. Replace it with exact MCX calendar dates when available.
-- GOLDTEN's history starts in April 2025, so its results have fewer trades.
+- Only one year of history, with one major rally (Jan–Feb 2026). Results depend heavily on that single event.
+- The volatility gate was designed after seeing the data. It must be tested on older rallies before anyone trusts it.
 - The equal-gram GOLDM hedge leaves about 0.4% gold exposure because of the 995 vs 999 purity difference.

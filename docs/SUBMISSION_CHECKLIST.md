@@ -13,9 +13,9 @@ Source: hackinhills.com round details, read 2 Oct 2026.
 
 Organisers want: working prototype / MVP, demo video, repository link, supporting documentation.
 
-- [ ] Download real Bhavcopy history into `data/raw/` (see README) — at least 2023 → today
+- [x] Download real Bhavcopy history into `data/raw/` (Oct 2025 – Oct 2026, 258 days)
 - [ ] Run `pytest -q` (all green) and `streamlit run app.py` on real data
-- [ ] Record the backtest verdict honestly, including a "no edge" result
+- [x] Record the backtest verdict honestly, including a "no edge" result (README → Results)
 - [ ] Push to a public GitHub repo (`EIWOUP/aulens` or a team org)
 - [ ] Deploy the app on Streamlit Community Cloud and put the link in the README
 - [ ] Record the demo video (script below)
@@ -29,7 +29,7 @@ Organisers want: working prototype / MVP, demo video, repository link, supportin
 | 0:20–0:50 | Normalised prices tab | "We convert every contract to rupees per gram of pure gold. Raw prices aren't comparable; these are." |
 | 0:50–1:20 | Term structure tab | "GOLDM expires early in the month, the others at month-end. We remove that timing gap using the carry the GOLDM curve itself implies." |
 | 1:20–1:50 | Today tab | "Alerts stay quiet unless the gap is big, beats costs, both legs trade, and there's time before tender. Today: quiet." |
-| 1:50–2:35 | Backtest tab | "Walk-forward: parameters picked on the past year only, traded on the next quarter, plus a six-month holdout. Fills at next-day prices with full costs. Here's the verdict, and β against gold shows the P&L isn't just gold moving." |
+| 1:50–2:35 | Backtest tab + results slide | "Twelve months of real MCX data, 258 days. Out of sample we made ₹1.26 lakh after costs, but ₹1.49 lakh of that came from the January–February gold rally. Every calm month lost money, including the July–September holdout. So our verdict is: no persistent edge after costs; the gap pays only in violent rallies. Gold beta is near zero, so this isn't just gold moving." |
 | 2:35–3:00 | Data quality tab + repo | "Every data trap in the PS has a rule and a test. Code, tests and method are on GitHub." |
 
 ## Round 3 · Social pitch & outreach (22 – 25 Oct 2026)
@@ -44,7 +44,7 @@ Required: LinkedIn post, Instagram Reel, short video with repo link. Tag Eren, B
 >
 > Then the hard part: does trading those gaps survive real costs? Our walk-forward backtest uses next-day prices, every exchange levy and slippage, and reports the answer even when it's "no edge".
 >
-> What we learned: <one line from your real results>.
+> What we learned: the small contracts traded above GOLDTEN on all 258 days, but trading the swings only paid during the Jan–Feb 2026 rally. In calm months, costs ate the gap. Honest answer: no persistent edge.
 >
 > Repo: <link> · Demo: <link>
 >
